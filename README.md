@@ -1,4 +1,4 @@
 ejvm
 ====
 
-A JVM written in Erlang
+A JVM written in Erlang.

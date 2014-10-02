@@ -1,7 +1,8 @@
 -module(formatchecker).
 -export([check/1]).
 
--include("classfile.hrl").
+-include_lib("classfile.hrl").
+-include_lib("eunit/include/eunit.hrl").
 
 %%% Checks the format of a classfile record. See section 4.8 in the VM spec.
 check(CF) ->
@@ -37,15 +38,25 @@ check_constant_pool([{string, Index}|Rest], CF) ->
     check_constant_pool(Rest, CF);
 check_constant_pool([{utf8, Length, Bytes}|Rest], CF) ->
     Length = byte_size(Bytes),
-    %% TODO check valid UTF-8 string
+    _UnicodeString = unicode:characters_to_list(Bytes, utf8),
     check_constant_pool(Rest, CF);
 check_constant_pool([{nameandtype, NameIndex, DescriptorIndex}|Rest], CF) ->
     %% TODO check that the names are valid
     {utf8, _, _} = classfile:lookup_constant(NameIndex, CF),
     {utf8, _, _} = classfile:lookup_constant(DescriptorIndex, CF),
     check_constant_pool(Rest, CF);
-check_constant_pool([CPInfo|Rest], CF) ->    
-    io:format("Constant pool format check not implemented for ~w~n", [CPInfo]),
-    check_constant_pool(Rest, CF).
+check_constant_pool([CPInfo|_Rest], _CF) ->    
+    throw({constant_pool_check, not_implemented, CPInfo}).
+    
+%%%
+%%% Unit tests.
+check_test() ->
+    CF = classfile:load_classfile("../priv/Test.class"),
+    check(CF).
+
+check_constant_pool_not_implemented_test() ->
+    X = dummy_term,
+    ?assertThrow({constant_pool_check, not_implemented, X}, 
+		 check_constant_pool([X], [])).
 
     

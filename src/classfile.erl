@@ -2,7 +2,8 @@
 -export([load_classfile/1,
 	 lookup_constant/2]).
 
--include("../include/classfile.hrl").
+-include_lib("classfile.hrl").
+-include_lib("eunit/include/eunit.hrl").
 
 load_classfile(Filename) ->
     {ok, Bin} = file:read_file(Filename),
@@ -127,3 +128,17 @@ load_attributes(Count, Bin, Acc) ->
 
 lookup_constant(Index, CF) ->
     lists:nth(Index, CF#classfile.constant_pool).
+
+
+%%%
+%%% Unit tests.
+
+classfile_load_test() ->
+    CF = load_classfile("../priv/Test.class"),
+    MethodIndex = 1, %% Index of method ref of base class ctor, java.lang.Object#init.
+    {methodref, NameIdx, DescrIdx} = lookup_constant(MethodIndex, CF),
+    {class, ClassIdx} = lookup_constant(NameIdx, CF),
+    {utf8, _, <<"java/lang/Object">>} = lookup_constant(ClassIdx, CF),
+    {nameandtype, NIdx, DIdx} = lookup_constant(DescrIdx, CF),
+    {utf8, _, <<"<init>">>} = lookup_constant(NIdx, CF),
+    {utf8, _, <<"()V">>} = lookup_constant(DIdx, CF).
