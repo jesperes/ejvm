@@ -20,6 +20,7 @@
 -define(CONSTANT_InvokeDynamic, 18).
 
 -define(ACC_PUBLIC, 16#0001).
+-define(ACC_STATIC, 16#0008).
 -define(ACC_FINAL, 16#0010).
 -define(ACC_SUPER, 16#0020).
 -define(ACC_INTERFACE, 16#0x0200).
