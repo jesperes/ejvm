@@ -1,0 +1,12 @@
+{application, ejvm,
+ [
+  {description, ""},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {mod, { ejvm_app, []}},
+  {env, []}
+ ]}.
