@@ -18,7 +18,18 @@ initialize_class(JVM, Class) ->
     InitThread = #javathread{current_method = ClassInitMethod, 
 			     frames = [#frame{}]},
     Code = classfile:get_method_code(ClassInitMethod, CF),
-    ?debugFmt("~nExecuting: ~w~n", [Code]).
+    interpret(JVM, Code, ClassInitMethod, CF).
+
+interpret(JVM, Code, Method, CF) ->
+    ?debugFmt("~nExecuting: ~w~n", [Code]),
+    {code, _, _, Bytes, _, _} = Code,
+    interpret_bytecodes(binary_to_list(Bytes), JVM).
+
+interpret_bytecodes([], JVM) ->
+    ok;
+interpret_bytecodes([B|Rest], JVM) ->
+    ?debugFmt("Interpreting: ~w", [B]),
+    interpret_bytecodes(Rest, JVM).
     
 %%%
 %%% Unit tests.
