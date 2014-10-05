@@ -8,6 +8,7 @@
 	 }).
 
 -record(frame, {
+	  stack = []
 	 }).
 
 %%% The code attribute.

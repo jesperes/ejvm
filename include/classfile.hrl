@@ -29,6 +29,17 @@
 -define(ACC_ANNOTATION, 16#0x2000).
 -define(ACC_ENUM, 16#0x4000).
 
+-define(ICONST_M1, 2).
+-define(ICONST_0, 3).
+-define(ICONST_1, 4).
+-define(ICONST_2, 5).
+-define(ICONST_3, 6).
+-define(ICONST_4, 7).
+-define(ICONST_5, 8).
+-define(RETURN, 177).
+-define(PUTSTATIC, 179).
+
+
 -record(classfile,
 	{
 	  version,
