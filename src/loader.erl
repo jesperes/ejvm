@@ -29,7 +29,7 @@ load_class(ClassName, ClassPath) ->
     Path = find_in_classpath(ClassPath, classname_to_filename(ClassName)),
     %%?debugFmt("Loading class: ~s~n", [Path]),
     CF = classfile:load_classfile(Path),
-    #class{classfile = CF}.
+    #class{name = ClassName, classfile = CF}.
 
 find_in_classpath_test() ->
     ?assertEqual("../priv/Test.class", find_in_classpath([".", "..", "../priv"], "Test.class")).

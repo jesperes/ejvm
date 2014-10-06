@@ -1,3 +1,5 @@
 -record(class, {
-	  classfile
+	  name,
+	  classfile,
+	  statics = dict:new()
 	 }).

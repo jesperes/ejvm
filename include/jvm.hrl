@@ -1,5 +1,5 @@
 -record(jvm, {
-	  initclass
+	  classes = dict:new()
 	 }).
 
 -record(javathread, {
