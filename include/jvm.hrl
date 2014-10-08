@@ -1,5 +1,5 @@
 -record(jvm, {
-	  classes = dict:new()
+	  statics = dict:new()
 	 }).
 
 -record(javathread, {

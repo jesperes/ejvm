@@ -36,9 +36,14 @@
 -define(ICONST_3, 6).
 -define(ICONST_4, 7).
 -define(ICONST_5, 8).
+-define(LDC, 18).
+-define(DUP, 89).
 -define(RETURN, 177).
+-define(GETSTATIC, 178).
 -define(PUTSTATIC, 179).
-
+-define(INVOKEVIRTUAL, 182).
+-define(INVOKESPECIAL, 183).
+-define(NEW, 187).
 
 -record(classfile,
 	{

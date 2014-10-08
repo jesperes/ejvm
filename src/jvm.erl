@@ -7,11 +7,29 @@
 -include_lib("eunit/include/eunit.hrl").
 
 jvm(InitClass, ClassPath) ->
+    %% Load the initial class, and initialize it. This includes
+    %% executing the bytecode instructions of the initialization
+    %% function <clinit>.
     Class = loader:load_class(InitClass, ClassPath),
-    JVM = #jvm{
-       classes = dict:store(InitClass, Class, dict:new())
-      },
-    initialize_class(JVM, Class).
+    JVM = initialize_class(#jvm{}, Class),
+
+    %% Lookup main.
+    CF = Class#class.classfile,
+    Method = classfile:lookup_method("main", "([Ljava/lang/String;)V", CF),
+    Code = classfile:get_method_code(Method, CF),
+    ?debugFmt("Main code: ~w~n", [Code]),
+
+    %% Setup thread to execute main
+    Frame = #frame{},
+    Thread = #javathread{
+		current_method = Method, 
+		frames = [Frame]
+	       },
+
+    {void, JVM0, Thread0} = interpret(JVM, Code, Method, CF, Thread),
+    [ActiveFrame|_] = Thread0#javathread.frames,
+    ?debugFmt("Operand stack after method exit: ~w~n", [ActiveFrame#frame.stack]),
+    JVM0.
 
 %%% Push operand on stack
 push_operand(Stack, Op) ->
@@ -30,12 +48,10 @@ frame_pop_operand(Frame) ->
 
 %%%
 %%% Initialize static class field
-jvm_initialize_static(JVM, ClassName, CPEntry, _Value) -> 
-    {fieldref, CIndex, NTIndex} = CPEntry,
-    ?debugFmt("Fieldref = ~w~n", [CPEntry]),
-    %%InitClass = dict:fetch(ClassName, JVM#jvm.classes),
-    %%dict:store(CPEntry# InitClass#class.statics
-    JVM.
+jvm_initialize_static(JVM, _CF, CPEntry, Value) -> 
+    %% Store value in jvm.statics using CPEntry as key.
+    JVM#jvm{statics = dict:store(CPEntry, Value, JVM#jvm.statics)}.
+
 
 %%% Push operand on stack of thread's active frame. Returns new
 %%% thread.
@@ -59,31 +75,56 @@ initialize_class(JVM, Class) ->
 		    frames = [Frame]
 		   },
     Code = classfile:get_method_code(ClassInitMethod, CF),
-    {void, JVM0} = interpret(JVM, Code, ClassInitMethod, CF, InitThread, Class),
+    {void, JVM0, _Thread} = interpret(JVM, Code, ClassInitMethod, CF, InitThread),
     JVM0.
 
-interpret(JVM, Code, _Method, CF, Thread, Class) ->
-    %% ?debugFmt("~nExecuting: ~w~n", [Code]),
+interpret(JVM, Code, _Method, CF, Thread) ->
     {code, _, _, Bytes, _, _} = Code,
-    interpret_bytecodes(Bytes, JVM, Thread, CF, Class).
+    {_, JVM0, Thread0} = interpret_bytecodes(Bytes, JVM, Thread, CF).
 
-interpret_bytecodes(<<>>, _JVM, _, _, _) ->
+interpret_bytecodes(<<>>, _, _, _) ->
     throw({unexpected_end_of_code});
-interpret_bytecodes(<<?ICONST_2:?U1, Rest/binary>>, JVM, Thread, CF, Class) ->
-    %% Push 2 on the operand stack.
-    %%?debugMsg("Push 2 on operand stack."),
-    interpret_bytecodes(Rest, JVM, thread_push_operand(Thread, 2), CF, Class);
-interpret_bytecodes(<<?PUTSTATIC:?U1, Index:?U2, Rest/binary>>, JVM, Thread, CF, Class) ->
+
+interpret_bytecodes(<<?ICONST_2:?U1, Rest/binary>>, JVM, Thread, CF) ->
+    interpret_bytecodes(Rest, JVM, thread_push_operand(Thread, 2), CF);
+
+interpret_bytecodes(<<?LDC:?U1, Index:?U1, Rest/binary>>, JVM, Thread, CF) ->
+    CPEntry = classfile:lookup_constant(Index, CF),
+    ?debugFmt("LDC: ~w~n", [CPEntry]),
+    case CPEntry of
+	{string, StringIndex} ->
+	    interpret_bytecodes(Rest, JVM, 
+				thread_push_operand(Thread, {stringref, StringIndex}), CF);
+	%% TODO
+	_ ->
+	    interpret_bytecodes(Rest, JVM, Thread, CF)
+    end;
+interpret_bytecodes(<<?GETSTATIC:?U1, Index:?U2, Rest/binary>>, JVM, Thread, CF) ->
+    interpret_bytecodes(Rest, JVM, Thread, CF);
+
+interpret_bytecodes(<<?PUTSTATIC:?U1, Index:?U2, Rest/binary>>, JVM, Thread, CF) ->
     CPEntry = classfile:lookup_constant(Index, CF),
     {Op, NewThread} = thread_pop_operand(Thread),
-    %%?debugFmt("Putstatic: ~w (~w) ~w", [Index, Op, CPEntry]),
-    %% initialize the field specified by CPEntry to the value Op
-    JVM0 = jvm_initialize_static(JVM, Class#class.name, CPEntry, Op),
-    interpret_bytecodes(Rest, JVM0, NewThread, CF, Class);
-interpret_bytecodes(<<?RETURN:?U1>>, JVM, _Thread, _CF, _Class) ->
+    JVM0 = jvm_initialize_static(JVM, CF, CPEntry, Op),
+    interpret_bytecodes(Rest, JVM0, NewThread, CF);
+
+interpret_bytecodes(<<?NEW:?U1, Index:?U2, Rest/binary>>, JVM, Thread, CF) ->
+    interpret_bytecodes(Rest, JVM, Thread, CF);
+
+interpret_bytecodes(<<?DUP:?U1, Rest/binary>>, JVM, Thread, CF) ->
+    interpret_bytecodes(Rest, JVM, Thread, CF);
+
+interpret_bytecodes(<<?INVOKEVIRTUAL:?U1, Index:?U2, Rest/binary>>, JVM, Thread, CF) ->
+    interpret_bytecodes(Rest, JVM, Thread, CF);
+
+interpret_bytecodes(<<?INVOKESPECIAL:?U1, Index:?U2, Rest/binary>>, JVM, Thread, CF) ->
+    interpret_bytecodes(Rest, JVM, Thread, CF);
+
+interpret_bytecodes(<<?RETURN:?U1>>, JVM, Thread, _CF) ->
     %% void return
-    {void, JVM};
-interpret_bytecodes(<<X:?U1, _Rest/binary>>, _JVM, _Thread, _CF, _Class) ->
+    {void, JVM, Thread};
+
+interpret_bytecodes(<<X:?U1, _Rest/binary>>, _JVM, _Thread, _CF) ->
     %% [_ActiveFrame|_] = Thread#javathread.frames,
     %% ?debugFmt("Operand stack: ~w~n", [ActiveFrame#frame.stack]),
     throw({invalid_bytecode, X}).
@@ -91,7 +132,10 @@ interpret_bytecodes(<<X:?U1, _Rest/binary>>, _JVM, _Thread, _CF, _Class) ->
 %%%
 %%% Unit tests.
 jvm_test() ->
-    _JVM0 = jvm("Test", ["../priv"]).
+    JVM0 = jvm("Test", ["../priv"]),
+    Statics = JVM0#jvm.statics,
+    %% Statics should now contain an assignment of {fieldref,11,32} -> 2.
+    ?assertEqual(2, dict:fetch({fieldref,11,32}, Statics)).
 
 push_operand_test() ->
     ?assertEqual([4,1,2,3], push_operand([1,2,3], 4)).
@@ -122,3 +166,7 @@ thread_pop_operand_test() ->
     Actual = thread_pop_operand(T),
     ?assertEqual(Expected, Actual).
 			    
+jvm_initialize_static_test() ->
+    Expected = #jvm{statics = dict:store({fieldref,1,2}, 42, dict:new())},    
+    Actual = jvm_initialize_static(#jvm{}, nil, {fieldref, 1, 2}, 42),
+    ?assertEqual(Expected, Actual).
