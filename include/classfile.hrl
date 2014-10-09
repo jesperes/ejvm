@@ -1,7 +1,7 @@
 -define(CLASSFILE_MAGIC, 16#cafebabe).
 
 -define(U4, 32/big).
--define(U2, 16/big).
+-define(U2, 2/big-signed-integer-unit:8).
 -define(U1, 8).
 
 -define(CONSTANT_Utf8, 1).
@@ -36,8 +36,20 @@
 -define(ICONST_3, 6).
 -define(ICONST_4, 7).
 -define(ICONST_5, 8).
+-define(BIPUSH, 16).
 -define(LDC, 18).
+-define(ILOAD_0, 26).
+-define(ILOAD_1, 27).
+-define(ILOAD_2, 28).
+-define(ILOAD_3, 29).
+-define(ISTORE_0, 59).
+-define(ISTORE_1, 60).
+-define(ISTORE_2, 61).
+-define(ISTORE_3, 62).
 -define(DUP, 89).
+-define(IINC, 132).
+-define(IF_CMPGE, 162).
+-define(GOTO, 167).
 -define(RETURN, 177).
 -define(GETSTATIC, 178).
 -define(PUTSTATIC, 179).
