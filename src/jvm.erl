@@ -81,17 +81,37 @@ translate(Code) ->
     {code, _, _, Bytes, _, _} = Code,
     translate_bytecodes(Bytes).
 
+
+%%% Record to hold bytecode interpreter state
+-record(state, {stack = []}).
+
+%%% Returns a fun which pushes Op on the operand stack.
+get_op_push_fun(Op) ->
+    fun(State) ->
+	    State#state{stack = [Op|State#state.stack]}
+    end.
+
+get_istore_fun(Op) ->
+    fun(State) ->
+	    %% TODO
+	    State
+    end.
+
+%%%
+%%% translate_bytecodes(Code) iterates through the bytecode and
+%%% returns a list of funs which takes and returns a State parameter
+%%% representing the state of the JVM.
 translate_bytecodes(<<?ICONST_0:?U1, Rest/binary>>) ->
-    [{iconst, 0}|translate_bytecodes(Rest)];
+    [get_op_push_fun(0)|translate_bytecodes(Rest)];
 
 translate_bytecodes(<<?ICONST_2:?U1, Rest/binary>>) ->
-    [{iconst, 0}|translate_bytecodes(Rest)];
+    [get_op_push_fun(2)|translate_bytecodes(Rest)];
 
 translate_bytecodes(<<?ISTORE_0:?U1, Rest/binary>>) ->
-    [{istore, 0}|translate_bytecodes(Rest)];
+    [get_istore_fun(0)|translate_bytecodes(Rest)];
 
 translate_bytecodes(<<?ISTORE_1:?U1, Rest/binary>>) ->
-    [{istore, 1}|translate_bytecodes(Rest)];
+    [get_istore_fun(1)|translate_bytecodes(Rest)];
 
 translate_bytecodes(<<?ILOAD_1:?U1, Rest/binary>>) ->
     [{iload, 1}|translate_bytecodes(Rest)];
@@ -139,6 +159,11 @@ translate_bytecodes(<<X:?U1, _Rest/binary>>) ->
     %% [{invalid_bytecode, X}],
     throw({invalid_bytecode, X}).
 
+
+execute_bytecode(Code, State) ->
+    Fun = get_next_instruction(Code),
+    State0 = Fun(State),
+    execute_bytecode(Code, State0).
 
 
 %%%
