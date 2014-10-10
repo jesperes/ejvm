@@ -8,7 +8,6 @@
 %% -compile(export_all).
 
 -include_lib("classfile.hrl").
--include_lib("jvm.hrl").
 -include_lib("eunit/include/eunit.hrl").
 
 load_classfile(Filename) ->
@@ -186,6 +185,8 @@ lookup_method_attribute0([Attr = {attribute, NIndex, _Data}|Attributes], String,
 	_ ->
 	    lookup_method_attribute0(Attributes, String, CF)
     end.
+
+
 
 %%%
 %%% 

@@ -1,4 +1,0 @@
--record(class, {
-	  name,
-	  classfile
-	 }).
